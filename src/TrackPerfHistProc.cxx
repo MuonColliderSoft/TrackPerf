@@ -65,14 +65,17 @@ void TrackPerfHistProc::init()
   tree->mkdir("all" ); tree->cd("all" );
   _allTracks =std::make_shared<TrackPerf::TrackHists>();
   _allTruths =std::make_shared<TrackPerf::TruthHists>();
-  h_number_of_tracks = new TH1F("number_of_tracks", ";Number of seeds/tracks;Events", 100, 0, 300000);
+  h_number_of_tracks = new TH1F("number_of_tracks", ";Number of tracks;Events", 100, 0, 300000);
+
   tree->mkdir("../real"); tree->cd("../real");
   _realTracks=std::make_shared<TrackPerf::TrackHists>();
   _realTruths=std::make_shared<TrackPerf::TruthHists>();
   _realReso    =std::make_shared<TrackPerf::ResoHists>();
+
   tree->mkdir("../fake"); tree->cd("../fake");
   _fakeTracks=std::make_shared<TrackPerf::TrackHists>();
   h_number_of_fakes = new TH1F("number_of_fakes", ";Number of fake tracks;Events", 100,  0, 300000);
+
   tree->mkdir("../unmt"); tree->cd("../unmt");
   _unmtTruths=std::make_shared<TrackPerf::TruthHists>();
 }
