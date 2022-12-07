@@ -2,7 +2,9 @@
 
 #include "TrackPerf/TrackHists.hxx"
 #include "TrackPerf/TruthHists.hxx"
-#include "TrackPerf/ResoHists.hxx"
+#include "TrackPerf/TrackResoHists.hxx"
+#include "TrackPerf/TrackerHitResoHists.hxx"
+#include "TrackPerf/ClusterHists.hxx"
 
 #include <set>
 
@@ -11,6 +13,10 @@
 #include <EVENT/LCRelation.h>
 #include <EVENT/MCParticle.h>
 #include <EVENT/Track.h>
+#include <EVENT/TrackerHit.h>
+#include <EVENT/SimTrackerHit.h>
+#include <EVENT/TrackerHitPlane.h>
+#include <IMPL/TrackerHitPlaneImpl.h>
 
 #include <marlin/AIDAProcessor.h>
 
@@ -50,6 +56,55 @@ TrackPerfHistProc::TrackPerfHistProc()
 			   _trkMatchColName,
 			   _trkMatchColName
 			   );
+
+  registerInputCollection( LCIO::TRACKERHIT,
+			   "VBTrackerHitsCollection" , 
+			   "Name of vertex barrel tracker hits collection",
+			   _vbtrkhitColName,
+			   _vbtrkhitColName
+			   );     
+
+  registerInputCollection( LCIO::TRACKERHIT,
+			   "IBTrackerHitsCollection" , 
+			   "Name of inner barrel tracker hits collection",
+			   _ibtrkhitColName,
+			   _ibtrkhitColName
+			   );  
+
+  registerInputCollection( LCIO::TRACKERHIT,
+			   "OBTrackerHitsCollection" , 
+			   "Name of outer barrel tracker hits collection",
+			   _obtrkhitColName,
+			   _obtrkhitColName
+			   );  
+
+  registerInputCollection( LCIO::TRACKERHIT,
+			   "VETrackerHitsCollection" , 
+			   "Name of vertex endcap tracker hits collection",
+			   _vetrkhitColName,
+			   _vetrkhitColName
+			   );  
+
+  registerInputCollection( LCIO::TRACKERHIT,
+			   "IETrackerHitsCollection" , 
+			   "Name of inner endcap tracker hits collection",
+			   _ietrkhitColName,
+			   _ietrkhitColName
+			   );     
+
+  registerInputCollection( LCIO::TRACKERHIT,
+			   "OETrackerHitsCollection" , 
+			   "Name of outer endcap tracker hits collection",
+			   _oetrkhitColName,
+			   _oetrkhitColName
+			   );  
+
+  registerInputCollection( LCIO::LCRELATION,
+		     "VBRelationCollection" ,
+			   "Name of the input relation collection",
+			   _VBRelationCollection,
+		     _VBRelationCollection
+		 	    );
 }
 
 void TrackPerfHistProc::init()
@@ -66,20 +121,26 @@ void TrackPerfHistProc::init()
   _allTracks =std::make_shared<TrackPerf::TrackHists>();
   _allTruths =std::make_shared<TrackPerf::TruthHists>();
   h_number_of_tracks = new TH1F("number_of_tracks", ";Number of seeds/tracks;Events", 100, 0, 300000);
+  h_trackerhit_timing = new TH1F("time_of_flight", ";Time of flight for tracker hits [ns];Tracker hits;", 1000, -1, 1);
   tree->mkdir("../real"); tree->cd("../real");
   _realTracks=std::make_shared<TrackPerf::TrackHists>();
   _realTruths=std::make_shared<TrackPerf::TruthHists>();
-  _realReso    =std::make_shared<TrackPerf::ResoHists>();
+  _realReso    =std::make_shared<TrackPerf::TrackResoHists>();
+  h_relation_weight_real = new TH1F("relation_weight", ";Track-truth relation weight;", 100, 0, 2);
   tree->mkdir("../fake"); tree->cd("../fake");
   _fakeTracks=std::make_shared<TrackPerf::TrackHists>();
   h_number_of_fakes = new TH1F("number_of_fakes", ";Number of fake tracks;Events", 100,  0, 300000);
+  h_relation_weight_fake = new TH1F("relation_weight", ";Track-truth relation weight;Tracks;", 100, 0, 2);
   tree->mkdir("../unmt"); tree->cd("../unmt");
-  _unmtTruths=std::make_shared<TrackPerf::TruthHists>();
+  _unmtTruths=std::make_shared<TrackPerf::TruthHists>(); 
+  tree->mkdir("../clusters" ); tree->cd("../clusters" );
+  _uncertainties=std::make_shared<TrackPerf::TrackerHitResoHists>();
+  _clusters=std::make_shared<TrackPerf::ClusterHists>();
+
 }
 
 void TrackPerfHistProc::processRunHeader( LCRunHeader* /*run*/)
 { } 
-
 
 void TrackPerfHistProc::processEvent( LCEvent * evt )
 {
@@ -112,7 +173,8 @@ void TrackPerfHistProc::processEvent( LCEvent * evt )
       const double* mom=mcp->getMomentum();
       double pt=std::sqrt(std::pow(mom[0],2)+std::pow(mom[1],2));
       double lambda=std::atan2(mom[2],pt);
-      if(fabs(lambda)>75./180*3.14)
+      //if(fabs(lambda)>75./180*3.14)
+      if(fabs(lambda)>0.8)
 	{ continue; }
 
       mcpSet.insert(mcp);
@@ -130,11 +192,86 @@ void TrackPerfHistProc::processEvent( LCEvent * evt )
   for(uint32_t i=0;i<trkCol->getNumberOfElements();i++)
     {
       const EVENT::Track *trk=static_cast<const EVENT::Track*>(trkCol->getElementAt(i));
+      
+      float lambda=std::atan(trk->getTanLambda());
+      if(fabs(lambda)>0.8)
+      {continue;}
 
       trkSet.insert(trk);
       _allTracks->fill(trk);
     }
     h_number_of_tracks->Fill(trkSet.size());
+
+  // Relations
+
+  LCCollection* relCol  =evt->getCollection(_trkMatchColName);
+
+  if( relCol->getTypeName() != lcio::LCIO::LCRELATION )
+    { throw EVENT::Exception( "Invalid collection type: " + relCol->getTypeName() ) ; }
+
+  std::set<const EVENT::LCRelation*> relSet;
+  for(uint32_t i=0;i<relCol->getNumberOfElements();i++)
+    {
+      const EVENT::LCRelation *rel=static_cast<const EVENT::LCRelation*>(relCol->getElementAt(i));
+
+      relSet.insert(rel);
+    }
+
+  //Tracker hits
+
+  LCCollection* vbtrkhitCol  =evt->getCollection(_vbtrkhitColName);
+  LCCollection* ibtrkhitCol  =evt->getCollection(_ibtrkhitColName);
+  LCCollection* obtrkhitCol  =evt->getCollection(_obtrkhitColName);
+  LCCollection* vetrkhitCol  =evt->getCollection(_vetrkhitColName);
+  LCCollection* ietrkhitCol  =evt->getCollection(_ietrkhitColName);
+  LCCollection* oetrkhitCol  =evt->getCollection(_oetrkhitColName);
+  LCCollection* VBRelationCollection =evt->getCollection(_VBRelationCollection);
+
+  for(int i=0; i<VBRelationCollection->getNumberOfElements(); ++i)
+    {
+      EVENT::LCRelation *rel=static_cast<EVENT::LCRelation*>(VBRelationCollection->getElementAt(i));
+      EVENT::TrackerHit *trkhit=dynamic_cast<EVENT::TrackerHit*>(rel->getFrom());
+      EVENT::SimTrackerHit *simtrkhit=dynamic_cast<EVENT::SimTrackerHit*>(rel->getTo());
+
+      IMPL::TrackerHitPlaneImpl *trkhitplane=dynamic_cast<IMPL::TrackerHitPlaneImpl*>(trkhit);
+
+      if(trkhit==nullptr or simtrkhit==nullptr or trkhitplane==nullptr){
+        std::cout << "Warning: Failed to dynamic cast to planar sensor" << std::endl;
+        std::cout << "- Trackhit: " << trkhit << std::endl;
+        std::cout << "- Simtrackhit: " << simtrkhit << std::endl;
+        std::cout << "- Trackhitplane: " << trkhitplane << std::endl;
+        continue;
+      }
+
+      _uncertainties->fill(trkhit,simtrkhit,trkhitplane);
+    }
+
+  for(int i=0; i<vbtrkhitCol->getNumberOfElements(); ++i)
+    {
+      const EVENT::TrackerHit *trkhit=static_cast<const EVENT::TrackerHit*>(vbtrkhitCol->getElementAt(i));
+      h_trackerhit_timing -> Fill(trkhit->getTime());
+      _clusters->fill(trkhit);}
+  for(int i=0; i<ibtrkhitCol->getNumberOfElements(); ++i)
+    {
+      const EVENT::TrackerHit *trkhit=static_cast<const EVENT::TrackerHit*>(ibtrkhitCol->getElementAt(i));
+      h_trackerhit_timing -> Fill(trkhit->getTime());}      
+  for(int i=0; i<obtrkhitCol->getNumberOfElements(); ++i)
+    {
+      const EVENT::TrackerHit *trkhit=static_cast<const EVENT::TrackerHit*>(obtrkhitCol->getElementAt(i));
+      h_trackerhit_timing -> Fill(trkhit->getTime());}
+  for(int i=0; i<vetrkhitCol->getNumberOfElements(); ++i)
+    {
+      const EVENT::TrackerHit *trkhit=static_cast<const EVENT::TrackerHit*>(vetrkhitCol->getElementAt(i));
+      h_trackerhit_timing -> Fill(trkhit->getTime());}
+  for(int i=0; i<ietrkhitCol->getNumberOfElements(); ++i)
+    {
+      const EVENT::TrackerHit *trkhit=static_cast<const EVENT::TrackerHit*>(ietrkhitCol->getElementAt(i));
+      h_trackerhit_timing -> Fill(trkhit->getTime());}
+  for(int i=0; i<oetrkhitCol->getNumberOfElements(); ++i)
+    {
+      const EVENT::TrackerHit *trkhit=static_cast<const EVENT::TrackerHit*>(oetrkhitCol->getElementAt(i));
+      h_trackerhit_timing -> Fill(trkhit->getTime());}
+
 
   //
   // Loop over track to MC associations to save matched objects
@@ -158,9 +295,11 @@ void TrackPerfHistProc::processEvent( LCEvent * evt )
 	    _realTracks->fill(trk);
 	    _realTruths->fill(mcp);
       _realReso  ->fill(trk,mcp);
+      h_relation_weight_real ->Fill(rel->getWeight());
 
 	    mcpSet.erase(mcp);
 	    trkSet.erase(trk);
+      relSet.erase(rel);
     }
 	}
     }  
@@ -171,8 +310,11 @@ void TrackPerfHistProc::processEvent( LCEvent * evt )
     { _unmtTruths->fill(mcp); }
   for(const EVENT::Track* trk : trkSet)
     { _fakeTracks->fill(trk);} 
+  for(const EVENT::LCRelation* rel : relSet)
+    { h_relation_weight_fake->Fill(rel->getWeight());}
   h_number_of_fakes->Fill(trkSet.size());
 } 
+
 
 void TrackPerfHistProc::check( LCEvent * /*evt*/ )
 { }

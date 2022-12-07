@@ -29,5 +29,6 @@ namespace TrackPerf
     TH1* h_phi;
     TH1* h_vtr;
     TH1* h_vtz;
+    TH1* h_pdg;
   };
 }
