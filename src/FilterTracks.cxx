@@ -45,10 +45,6 @@ FilterTracks::FilterTracks() : Processor("FilterTracks") {
   registerOutputCollection(LCIO::TRACK, "OutputTrackCollectionName",
                            "Name of output collection", _OutTrackCollection,
                            _OutTrackCollection);
-
-  registerOutputCollection(LCIO::TRACK, "OutTrackCollection",
-                           "Name of output collection", _OutTrackCollection,
-                           _OutTrackCollection);
 }
 
 void FilterTracks::init() {
