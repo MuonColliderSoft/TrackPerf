@@ -5,6 +5,10 @@
 #include <TVector2.h>
 #include <TMath.h>
 
+// DD4hep
+#include <DD4hep/Detector.h>
+#include <DD4hep/DD4hepUnits.h>
+
 namespace EVENT {
 class Track;
 class MCParticle;
@@ -22,12 +26,10 @@ class EfficiencyHists {
 
   // Fill histograms with a single track
   void fillMC(const EVENT::MCParticle* track, bool passed);
-  void fillTrack(const EVENT::Track* track, bool passed);
+  void fillTrack(const EVENT::Track* track, bool passed,
+                 dd4hep::Detector* lcdd);
 
  private:
-  //! magnetic field to use for curvature -> pT conversion
-  float _Bz = 3.57;
-
   //! Efficiency plots
   TEfficiency* h_effpt;
   TEfficiency* h_efftheta;

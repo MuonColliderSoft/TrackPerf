@@ -6,6 +6,10 @@
 #include <EVENT/MCParticle.h>
 #include <EVENT/Track.h>
 
+// DD4hep
+#include <DD4hep/DD4hepUnits.h>
+#include <DD4hep/Detector.h>
+
 #include <AIDA/ITree.h>
 #include <marlin/AIDAProcessor.h>
 #include <set>
@@ -76,6 +80,8 @@ void TrackPerfHistProc::init() {
   tree->cd("../efficiency");
   _effiPlots = std::make_shared<TrackPerf::EfficiencyHists>(true);
   _fakePlots = std::make_shared<TrackPerf::EfficiencyHists>(false);
+  
+  _lcdd = &dd4hep::Detector::getInstance();
 }
 
 void TrackPerfHistProc::processRunHeader(LCRunHeader* /*run*/) {}
@@ -135,7 +141,7 @@ void TrackPerfHistProc::processEvent(LCEvent* evt) {
         static_cast<const EVENT::Track*>(trkCol->getElementAt(i));
 
     trkSet.insert(trk);
-    _allTracks->fill(trk);
+    _allTracks->fill(trk, _lcdd);
   }
   h_number_of_tracks->Fill(trkSet.size());
 
@@ -160,11 +166,11 @@ void TrackPerfHistProc::processEvent(LCEvent* evt) {
 
     if (rel->getWeight() > _matchProb) {
       if (trkSet.find(trk) != trkSet.end()) {
-        _realTracks->fill(trk);
+        _realTracks->fill(trk, _lcdd);
         _realTruths->fill(mcp);
 	_effiPlots->fillMC(mcp, true);
-        _realReso->fill(trk, mcp);
-	_fakePlots->fillTrack(trk, false);
+        _realReso->fill(trk, mcp, _lcdd);
+	_fakePlots->fillTrack(trk, false, _lcdd);
 
         mcpSet.erase(mcp);
         trkSet.erase(trk);
@@ -179,8 +185,8 @@ void TrackPerfHistProc::processEvent(LCEvent* evt) {
     _effiPlots->fillMC(mcp, false);
   }
   for (const EVENT::Track* trk : trkSet) {
-    _fakeTracks->fill(trk);
-    _fakePlots->fillTrack(trk, true);
+    _fakeTracks->fill(trk, _lcdd);
+    _fakePlots->fillTrack(trk, true, _lcdd);
   }
   h_number_of_fakes->Fill(trkSet.size());
 }

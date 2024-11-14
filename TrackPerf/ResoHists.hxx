@@ -4,6 +4,12 @@
 #include <TH2.h>
 #include <TVector2.h>
 
+// DD4hep
+#include <DD4hep/Detector.h>
+#include <DD4hep/DD4hepUnits.h>
+
+
+
 namespace EVENT {
 class Track;
 class MCParticle;
@@ -20,12 +26,11 @@ class ResoHists {
   ResoHists();
 
   // Fill histograms with a single track
-  void fill(const EVENT::Track* track, const EVENT::MCParticle* particle);
+  void fill(const EVENT::Track* track,
+            const EVENT::MCParticle* particle,
+            dd4hep::Detector* lcdd);
 
  private:
-  //! magnetic field to use for curvature -> pT conversion
-  float _Bz = 3.57;
-
   //! Reconstructed track pT
   TH2* h_track_truth_pt;
   TH1* h_reso_pt_rel;

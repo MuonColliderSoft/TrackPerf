@@ -3,6 +3,10 @@
 #include <TH1.h>
 #include <TH2.h>
 
+// DD4hep
+#include <DD4hep/Detector.h>
+#include <DD4hep/DD4hepUnits.h>
+
 namespace EVENT {
 class Track;
 }
@@ -18,12 +22,10 @@ class TrackHists {
   TrackHists();
 
   // Fill histograms with a single track
-  void fill(const EVENT::Track* track);
+  void fill(const EVENT::Track* track,
+            dd4hep::Detector* lcdd);
 
  private:
-  //! magnetic field to use for curvature -> pT conversion
-  float _Bz = 3.57;
-
   //! Reconstructed track pT
   TH1* h_pt;
   TH1* h_lambda;

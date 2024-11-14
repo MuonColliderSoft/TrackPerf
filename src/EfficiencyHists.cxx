@@ -17,8 +17,16 @@ EfficiencyHists::EfficiencyHists(bool effi) {
   }
 }
 
-void EfficiencyHists::fillTrack(const EVENT::Track* track, bool passed) {
-  float pt = fabs(0.3 * _Bz / track->getOmega() / 1000);
+void EfficiencyHists::fillTrack(const EVENT::Track* track, bool passed,
+				dd4hep::Detector* lcdd) {
+  //TODO: This assumes uniform magnetic field
+  const double position[3] = {0, 0, 0};           // position to calculate magnetic field (here, the origin)
+  double magneticFieldVector[3] = {0, 0, 0};      // initialise object to hold magnetic field
+  lcdd->field().magneticField(
+        position, magneticFieldVector); // get the magnetic field vector from DD4hep
+  float Bz = magneticFieldVector[2] / dd4hep::tesla;
+  
+  float pt = fabs(0.3 * Bz / track->getOmega() / 1000);
   float theta = TMath::Pi() - std::atan(track->getTanLambda());
 
   h_effpt->Fill(passed, pt);

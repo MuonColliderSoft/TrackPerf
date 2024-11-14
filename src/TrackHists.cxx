@@ -32,8 +32,16 @@ TrackHists::TrackHists() {
                20, -0.5, 19.5);
 }
 
-void TrackHists::fill(const EVENT::Track* track) {
-  float pt = fabs(0.3 * _Bz / track->getOmega() / 1000);
+void TrackHists::fill(const EVENT::Track* track, 
+		      dd4hep::Detector* lcdd) {
+  //TODO: This assumes uniform magnetic field
+  const double position[3] = {0, 0, 0};           // position to calculate magnetic field (here, the origin)
+  double magneticFieldVector[3] = {0, 0, 0};      // initialise object to hold magnetic field
+  lcdd->field().magneticField(
+        position, magneticFieldVector); // get the magnetic field vector from DD4hep
+  float Bz = magneticFieldVector[2] / dd4hep::tesla;
+  
+  float pt = fabs(0.3 * Bz / track->getOmega() / 1000);
   h_pt->Fill(pt);
 
   float lambda = std::atan(track->getTanLambda());

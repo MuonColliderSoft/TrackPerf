@@ -4,6 +4,9 @@
 
 #include <marlin/Processor.h>
 
+// DD4hep
+#include <DD4hep/Detector.h>
+
 namespace TrackPerf {
 class TrackHists;
 class TruthHists;
@@ -48,6 +51,10 @@ class TrackPerfHistProc : public marlin::Processor {
 
   //! Track to MC truth match collection
   std::string _trkMatchColName{};
+
+  //! Magnetic field to use for curvature -> pT conversion
+  dd4hep::Detector* _lcdd;
+
 
   //! Determination of good vs bad match
   float _matchProb = 0.5;
